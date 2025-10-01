@@ -1,0 +1,306 @@
+// StudyPal MongoDB Schema Design
+
+// Users Collection
+const userSchema = {
+  _id: ObjectId,
+  email: String,
+  password_hash: String,
+  full_name: String,
+  avatar_url: String,
+  learning_preferences: {
+    study_session_duration: Number, // minutes
+    daily_goal: Number, // cards per day
+    preferred_difficulty: String, // 'easy', 'medium', 'hard'
+    spaced_repetition_enabled: Boolean
+  },
+  stats: {
+    total_study_time: Number, // minutes
+    documents_uploaded: Number,
+    flashcards_reviewed: Number,
+    quizzes_completed: Number,
+    average_quiz_score: Number,
+    current_streak: Number // consecutive days
+  },
+  created_at: Date,
+  last_active: Date
+};
+
+// Documents Collection
+const documentSchema = {
+  _id: ObjectId,
+  user_id: ObjectId, // ref: Users
+  title: String,
+  description: String,
+  file_url: String, // S3 or local path
+  file_type: String, // 'pdf', 'docx', 'txt'
+  file_size: Number, // bytes
+  content_text: String, // extracted text
+  processing_status: String, // 'pending', 'processing', 'completed', 'failed'
+  metadata: {
+    page_count: Number,
+    word_count: Number,
+    language: String,
+    upload_date: Date
+  },
+  ai_analysis: {
+    summary: String,
+    key_concepts: [String],
+    difficulty_level: String,
+    estimated_study_time: Number, // minutes
+    topics: [String]
+  },
+  folder_id: ObjectId, // optional organization
+  tags: [String],
+  created_at: Date,
+  updated_at: Date
+};
+
+// Flashcards Collection
+const flashcardSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  document_id: ObjectId, // source document
+  front: String, // question or term
+  back: String, // answer or definition
+  context: String, // surrounding text from document
+  difficulty: String, // 'easy', 'medium', 'hard'
+  
+  // Spaced Repetition Algorithm (SM-2)
+  spaced_repetition: {
+    easiness_factor: Number, // 1.3 to 2.5
+    interval: Number, // days until next review
+    repetitions: Number, // number of successful reviews
+    next_review_date: Date,
+    last_reviewed: Date
+  },
+  
+  // User Performance
+  review_history: [{
+    reviewed_at: Date,
+    quality: Number, // 0-5 (0=complete blackout, 5=perfect)
+    response_time: Number, // seconds
+    was_correct: Boolean
+  }],
+  
+  times_reviewed: Number,
+  times_correct: Number,
+  times_incorrect: Number,
+  average_response_time: Number,
+  
+  is_starred: Boolean, // user marked as important
+  is_archived: Boolean,
+  created_at: Date,
+  updated_at: Date
+};
+
+// Quizzes Collection
+const quizSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  document_id: ObjectId, // source document (optional)
+  title: String,
+  description: String,
+  quiz_type: String, // 'multiple_choice', 'true_false', 'fill_blank', 'mixed'
+  
+  questions: [{
+    question_id: ObjectId,
+    question_text: String,
+    question_type: String,
+    options: [String], // for multiple choice
+    correct_answer: String,
+    explanation: String,
+    difficulty: String,
+    points: Number,
+    source_page: Number // reference to document page
+  }],
+  
+  total_questions: Number,
+  total_points: Number,
+  time_limit: Number, // minutes, null = unlimited
+  passing_score: Number, // percentage
+  
+  // Adaptive Settings
+  adaptive_difficulty: Boolean,
+  starting_difficulty: String,
+  
+  created_at: Date,
+  is_active: Boolean
+};
+
+// Quiz Attempts Collection
+const quizAttemptSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  quiz_id: ObjectId,
+  
+  answers: [{
+    question_id: ObjectId,
+    user_answer: String,
+    is_correct: Boolean,
+    time_spent: Number, // seconds
+    answered_at: Date
+  }],
+  
+  score: Number, // percentage
+  points_earned: Number,
+  total_time: Number, // seconds
+  
+  performance_analysis: {
+    strengths: [String], // topics user did well on
+    weaknesses: [String], // topics needing improvement
+    recommended_study_materials: [ObjectId] // document refs
+  },
+  
+  started_at: Date,
+  completed_at: Date,
+  status: String // 'in_progress', 'completed', 'abandoned'
+};
+
+// Study Sessions Collection
+const studySessionSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  session_type: String, // 'flashcard_review', 'quiz', 'reading', 'mixed'
+  
+  documents_studied: [ObjectId],
+  flashcards_reviewed: [{
+    flashcard_id: ObjectId,
+    was_correct: Boolean,
+    response_time: Number
+  }],
+  quizzes_taken: [ObjectId],
+  
+  duration: Number, // minutes
+  cards_reviewed: Number,
+  cards_correct: Number,
+  
+  focus_score: Number, // 0-100, based on response times and accuracy
+  
+  started_at: Date,
+  ended_at: Date
+};
+
+// Study Plans Collection (Optional - for structured learning)
+const studyPlanSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  name: String,
+  description: String,
+  goal: String,
+  target_date: Date,
+  
+  curriculum: [{
+    week: Number,
+    topics: [String],
+    documents: [ObjectId],
+    flashcard_count: Number,
+    quiz_count: Number,
+    estimated_hours: Number
+  }],
+  
+  progress: {
+    current_week: Number,
+    completion_percentage: Number,
+    documents_completed: Number,
+    flashcards_mastered: Number,
+    quizzes_passed: Number
+  },
+  
+  is_active: Boolean,
+  created_at: Date,
+  completed_at: Date
+};
+
+// Folders Collection (Organization)
+const folderSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  name: String,
+  color: String,
+  icon: String,
+  parent_folder_id: ObjectId, // for nested folders
+  document_count: Number,
+  created_at: Date
+};
+
+// Knowledge Graph Collection (Advanced Feature)
+const knowledgeNodeSchema = {
+  _id: ObjectId,
+  user_id: ObjectId,
+  concept: String,
+  definition: String,
+  related_documents: [ObjectId],
+  related_flashcards: [ObjectId],
+  
+  connections: [{
+    to_concept_id: ObjectId,
+    relationship_type: String, // 'is_a', 'part_of', 'related_to', 'prerequisite'
+    strength: Number // 0-1
+  }],
+  
+  mastery_level: Number, // 0-100
+  last_reviewed: Date,
+  created_at: Date
+};
+
+// Indexes for Performance
+// db.users.createIndex({ email: 1 }, { unique: true })
+// db.documents.createIndex({ user_id: 1, created_at: -1 })
+// db.flashcards.createIndex({ user_id: 1, 'spaced_repetition.next_review_date': 1 })
+// db.flashcards.createIndex({ document_id: 1 })
+// db.quizzes.createIndex({ user_id: 1, is_active: 1 })
+// db.quizAttempts.createIndex({ user_id: 1, completed_at: -1 })
+// db.studySessions.createIndex({ user_id: 1, started_at: -1 })
+
+// Example: Spaced Repetition Algorithm (SM-2)
+function updateSpacedRepetition(flashcard, quality) {
+  // quality: 0-5 (0=complete blackout, 5=perfect response)
+  
+  const { easiness_factor, interval, repetitions } = flashcard.spaced_repetition;
+  
+  let newEF = easiness_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+  
+  if (newEF < 1.3) newEF = 1.3;
+  
+  let newInterval, newRepetitions;
+  
+  if (quality < 3) {
+    // Incorrect - reset
+    newRepetitions = 0;
+    newInterval = 1;
+  } else {
+    // Correct
+    if (repetitions === 0) {
+      newInterval = 1;
+    } else if (repetitions === 1) {
+      newInterval = 6;
+    } else {
+      newInterval = Math.round(interval * newEF);
+    }
+    newRepetitions = repetitions + 1;
+  }
+  
+  const nextReviewDate = new Date();
+  nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
+  
+  return {
+    easiness_factor: newEF,
+    interval: newInterval,
+    repetitions: newRepetitions,
+    next_review_date: nextReviewDate,
+    last_reviewed: new Date()
+  };
+}
+
+module.exports = {
+  userSchema,
+  documentSchema,
+  flashcardSchema,
+  quizSchema,
+  quizAttemptSchema,
+  studySessionSchema,
+  studyPlanSchema,
+  folderSchema,
+  knowledgeNodeSchema,
+  updateSpacedRepetition
+};
